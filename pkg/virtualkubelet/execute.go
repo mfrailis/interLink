@@ -760,7 +760,7 @@ func remoteExecutionHandleProjectedSource(
 		tokenRequestResult, err := p.clientSet.CoreV1().ServiceAccounts(pod.Namespace).CreateToken(
 			ctx, pod.Spec.ServiceAccountName, tokenRequest, metav1.CreateOptions{})
 		if err != nil {
-			log.G(ctx).Error("error during token request in RemoteExecution() ", err)
+			return fmt.Errorf("error during token request in RemoteExecution(): %w", err)
 		}
 		log.G(ctx).Debug("could get token ", tokenRequestResult.Status.Token)
 
@@ -905,7 +905,6 @@ func remoteExecutionHandleVolumes(ctx context.Context, p *Provider, pod *v1.Pod,
 					projectedVolume.Name = volume.Name
 					projectedVolume.Data = make(map[string]string)
 					log.G(ctx).Debug("Adding to PodCreateRequests the projected volume ", volume.Name)
-					req.ProjectedVolumeMaps = append(req.ProjectedVolumeMaps, projectedVolume)
 
 					for _, source := range volume.Projected.Sources {
 						err := remoteExecutionHandleProjectedSource(ctx, p, pod, source, &projectedVolume)
@@ -913,8 +912,11 @@ func remoteExecutionHandleVolumes(ctx context.Context, p *Provider, pod *v1.Pod,
 							return err
 						}
 						failedAndWait = false
-						log.G(ctx).Debug("ProjectedVolumeMaps len: ", len(req.ProjectedVolumeMaps))
 					}
+
+					// Append after filling, otherwise req gets a stale empty copy.
+					req.ProjectedVolumeMaps = append(req.ProjectedVolumeMaps, projectedVolume)
+					log.G(ctx).Debug("ProjectedVolumeMaps len: ", len(req.ProjectedVolumeMaps))
 
 				case volume.Secret != nil:
 					scrt, err := p.clientSet.CoreV1().Secrets(pod.Namespace).Get(ctx, volume.Secret.SecretName, metav1.GetOptions{})

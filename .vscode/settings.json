@@ -10,5 +10,6 @@
           "MD026": {
             "punctuation": ".,:;!"
           }
-    }
+    },
+    "makefile.configureOnOpen": false
 }
